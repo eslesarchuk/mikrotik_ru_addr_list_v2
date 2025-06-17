@@ -12,6 +12,7 @@ FILENAME = 'russia.auto.rsc'
 $cached_cidrs = nil
 $last_fetched_at = nil
 
+set :host_authorization, { permitted_hosts: [] }
 set :bind, '0.0.0.0'
 set :port, 4777
 
