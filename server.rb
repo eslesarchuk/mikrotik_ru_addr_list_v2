@@ -7,11 +7,9 @@ require 'socket'
 
 CACHE_DURATION = 24 * 60 * 60 # seconds
 SOURCES = {
-  'russia' => 'https://www.iwik.org/ipcountry/RU.cidr',
-  'belarus' => 'https://www.iwik.org/ipcountry/BY.cidr',
+  'russia' => { 'url' => 'https://www.iwik.org/ipcountry/RU.cidr', 'code' => 'RU' },
+  'belarus' => { 'url' => 'https://www.iwik.org/ipcountry/BY.cidr', 'code' => 'BY' },
 }
-# MIKROTIK_LIST = 'russia'
-# FILENAME = 'russia.auto.rsc'
 
 $cached_cidrs = nil
 $last_fetched_at = nil
@@ -45,7 +43,7 @@ SOURCES.each do |country,source|
     # update if needed
     if $cached_cidrs.nil? || $last_fetched_at.nil? || (now - $last_fetched_at) > CACHE_DURATION
       begin
-        response = Faraday.get(source)
+        response = Faraday.get(source['url'])
         if response.success?
           cidrs = response.body.lines.map(&:strip).reject do |line|
             line.empty? || line.start_with?('#')
@@ -65,9 +63,14 @@ SOURCES.each do |country,source|
     end
     # actual output
     content_type 'text/plain'
-    timestamp = Time.now.strftime('%d%b%Y').downcase
-    commands = $cached_cidrs.map { |cidr| "/ip f a a a=#{cidr} l=#{country} dy=y com=#{timestamp}" }
-    commands.prepend "/ip f address-list rem [/ip f address-list f list=#{country}]"
+    if params[:compact].nil?
+      timestamp = Time.now.strftime('%d%b%Y').downcase
+      commands = $cached_cidrs.map { |cidr| "/ip f a a a=#{cidr} l=#{country} dy=y com=#{timestamp}" }
+      commands.prepend "/ip f address-list rem [/ip f address-list f list=#{country}]"
+    else
+      commands = $cached_cidrs.map { |cidr| "/ip f a a a=#{cidr} l=#{source['code']} dy=y" }
+      commands.prepend "/ip f address-list rem [/ip f address-list f list=#{source['code']}]"
+    end
     return commands.join("\n")
   end
 end
